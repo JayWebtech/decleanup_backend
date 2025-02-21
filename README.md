@@ -1,5 +1,3 @@
-# 🌍 DeCleanup Network – Backend Repository
-
 ## 🔹 Overview  
 This repository contains the backend infrastructure for **DeCleanup Network**, powering **Proof of Impact (PoI) submissions, reward allocation, leaderboard tracking, and referral validation**.  
 
