@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import authRoutes from './routes/auth.routes';
 import dashboardRoutes from './routes/dashboard.routes';
+import socialRoutes from './routes/social.routes';
+import rewardsRoutes from './routes/rewards.routes';
 
 // Create Express application
 const app = express();
@@ -20,6 +22,8 @@ app.use(cors({
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/social', socialRoutes);
+app.use('/api/rewards', rewardsRoutes);
 
 // Root route
 app.get('/', (req, res) => {
