@@ -1,17 +1,19 @@
-import 'dotenv/config';
+import { z } from 'zod';
+import { config as dotenvConfig } from 'dotenv';
 
-interface Config {
-    PORT: number;
-    DATABASE_URL: string;
-    JWT_SECRET: string;
-    JWT_EXPIRES_IN: string;
-    NODE_ENV: 'development' | 'production' | 'test';
-}
+dotenvConfig();
 
-export const config: Config = {
-    PORT: Number(process.env.PORT || 3000),
-    DATABASE_URL: process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/decleanup',
-    JWT_SECRET: process.env.JWT_SECRET || 'super-secret-key-for-development-only',
-    JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '30d',
-    NODE_ENV: (process.env.NODE_ENV as Config['NODE_ENV']) || 'development',
-}; 
+const configSchema = z.object({
+    PORT: z.coerce.number().default(3000),
+    DATABASE_URL: z.string().default('postgres://postgres:postgres@localhost:5432/decleanup'),
+    JWT_SECRET: z.string().default('super-secret-key-for-development-only'),
+    JWT_EXPIRES_IN: z.string().default('30d'),
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    TWITTER_CLIENT_ID: z.string(),
+    TWITTER_CLIENT_SECRET: z.string(),
+    TWITTER_CALLBACK_URL: z.string(),
+    FRONTEND_URL: z.string().default('http://localhost:3000'),
+});
+
+export const config = configSchema.parse(process.env);
+export type Config = z.infer<typeof configSchema>; 

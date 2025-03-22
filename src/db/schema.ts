@@ -8,6 +8,11 @@ export const users = pgTable('users', {
     id: uuid('id').primaryKey().defaultRandom(),
     walletAddress: text('wallet_address').notNull().unique(),
     ensName: text('ens_name'),
+    twitterHandle: text('twitter_handle'),
+    twitterAccessToken: text('twitter_access_token'),
+    twitterRefreshToken: text('twitter_refresh_token'),
+    twitterState: text('twitter_state'),
+    twitterCodeVerifier: text('twitter_code_verifier'),
     impactLevel: impactLevelEnum('impact_level').default('NEWBIE').notNull(),
     impactValue: integer('impact_value').default(1).notNull(),
     totalDcuPoints: integer('total_dcu_points').default(0).notNull(),
@@ -30,8 +35,21 @@ export const authSessions = pgTable('auth_sessions', {
     active: boolean('active').default(true).notNull(),
 });
 
+// Social posts table to track shared posts
+export const socialPosts = pgTable('social_posts', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => users.id),
+    platform: text('platform').notNull(),
+    postId: text('post_id').notNull(),
+    postType: text('post_type').notNull(),
+    impactLevel: integer('impact_level').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // Define relationships and types
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type AuthSession = typeof authSessions.$inferSelect;
-export type NewAuthSession = typeof authSessions.$inferInsert; 
+export type NewAuthSession = typeof authSessions.$inferInsert;
+export type SocialPost = typeof socialPosts.$inferSelect;
+export type NewSocialPost = typeof socialPosts.$inferInsert; 
