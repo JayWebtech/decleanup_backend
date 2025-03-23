@@ -4,6 +4,7 @@ import authRoutes from './routes/auth.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import socialRoutes from './routes/social.routes';
 import rewardsRoutes from './routes/rewards.routes';
+import poiRoutes from './routes/poi.routes';
 
 // Create Express application
 const app = express();
@@ -24,6 +25,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/rewards', rewardsRoutes);
+app.use('/api/poi', poiRoutes);
 
 // Root route
 app.get('/', (req, res) => {

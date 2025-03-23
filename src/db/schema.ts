@@ -3,6 +3,9 @@ import { pgTable, text, integer, timestamp, uuid, boolean, pgEnum } from 'drizzl
 // Define user impact level enum
 export const impactLevelEnum = pgEnum('impact_level', ['NEWBIE', 'PRO', 'HERO', 'GUARDIAN']);
 
+// Define submission status enum
+export const submissionStatusEnum = pgEnum('submission_status', ['PENDING', 'VERIFIED', 'REJECTED']);
+
 // User table schema
 export const users = pgTable('users', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -44,6 +47,21 @@ export const socialPosts = pgTable('social_posts', {
     postType: text('post_type').notNull(),
     impactLevel: integer('impact_level').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// PoI submissions table schema
+export const poiSubmissions = pgTable('poi_submissions', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => users.id),
+    beforeImageCid: text('before_image_cid').notNull(),
+    afterImageCid: text('after_image_cid').notNull(),
+    latitude: text('latitude'),
+    longitude: text('longitude'),
+    submissionTimestamp: timestamp('submission_timestamp').notNull(),
+    imageTimestamp: timestamp('image_timestamp'),
+    status: submissionStatusEnum('status').default('PENDING').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Define relationships and types

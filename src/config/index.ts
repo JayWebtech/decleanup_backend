@@ -13,6 +13,7 @@ const configSchema = z.object({
     TWITTER_CLIENT_SECRET: z.string(),
     TWITTER_CALLBACK_URL: z.string(),
     FRONTEND_URL: z.string().default('http://localhost:3000'),
+    IPFS_NODE_URL: z.string(),
 });
 
 export const config = configSchema.parse(process.env);
