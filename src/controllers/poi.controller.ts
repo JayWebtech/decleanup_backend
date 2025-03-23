@@ -3,8 +3,10 @@ import multer from 'multer';
 import sharp from 'sharp';
 import exifr from 'exifr';
 import { create } from 'ipfs-http-client';
+import { eq, and, desc, asc, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db';
-import { poiSubmissions } from '../db/schema';
+import { poiSubmissions, submissionStatusEnum, type User } from '../db/schema';
+
 
 // Configure IPFS client
 const ipfs = create({ url: process.env.IPFS_NODE_URL || 'http://localhost:5001' });
@@ -136,6 +138,255 @@ export const submitPoI = async (req: Request, res: Response): Promise<void> => {
         });
     } catch (error) {
         console.error('Error in submitPoI:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+        });
+    }
+};
+
+
+// Get pending submissions with pagination
+export const getPendingSubmissions = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        // Get total count of pending submissions
+        const [{ count }] = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(poiSubmissions)
+            .where(eq(poiSubmissions.status, 'PENDING'));
+
+        // Get paginated pending submissions
+        const submissions = await db.query.poiSubmissions.findMany({
+            where: eq(poiSubmissions.status, 'PENDING'),
+            limit,
+            offset,
+            orderBy: desc(poiSubmissions.createdAt),
+            with: {
+                user: true,
+            },
+        });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                submissions,
+                pagination: {
+                    total: Number(count),
+                    page,
+                    limit,
+                    totalPages: Math.ceil(Number(count) / limit),
+                },
+            },
+        });
+    } catch (error) {
+        console.error('Error fetching pending submissions:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+        });
+    }
+};
+
+// Verify a submission
+export const verifySubmission = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { submissionId } = req.params;
+        const { status, notes } = req.body as { status: typeof submissionStatusEnum.enumValues[number]; notes?: string };
+        const validatorId = req.user?.id;
+
+        if (!submissionId || !status || !validatorId) {
+            res.status(400).json({
+                success: false,
+                message: 'Missing required fields',
+            });
+            return;
+        }
+
+        if (!Object.values(submissionStatusEnum.enumValues).includes(status)) {
+            res.status(400).json({
+                success: false,
+                message: 'Invalid status value',
+            });
+            return;
+        }
+
+        const [updatedSubmission] = await db
+            .update(poiSubmissions)
+            .set({
+                status,
+                verifiedBy: validatorId,
+                verificationTimestamp: new Date(),
+                verificationNotes: notes,
+                isEligibleForClaim: status === 'VERIFIED',
+                updatedAt: new Date(),
+            })
+            .where(eq(poiSubmissions.id, submissionId))
+            .returning();
+
+        if (!updatedSubmission) {
+            res.status(404).json({
+                success: false,
+                message: 'Submission not found',
+            });
+            return;
+        }
+
+        res.status(200).json({
+            success: true,
+            data: updatedSubmission,
+        });
+    } catch (error) {
+        console.error('Error verifying submission:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+        });
+    }
+};
+
+// Get submission verification status
+export const getSubmissionStatus = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { submissionId } = req.params;
+        const user = req.user as User;
+
+        const submission = await db.query.poiSubmissions.findFirst({
+            where: eq(poiSubmissions.id, submissionId),
+        });
+
+        if (!submission) {
+            res.status(404).json({
+                success: false,
+                message: 'Submission not found',
+            });
+            return;
+        }
+
+        // Only allow users to view their own submissions unless they're validators/admins
+        if (submission.userId !== user.id && user.role === 'USER') {
+            res.status(403).json({
+                success: false,
+                message: 'Unauthorized to view this submission',
+            });
+            return;
+        }
+
+        res.status(200).json({
+            success: true,
+            data: submission,
+        });
+    } catch (error) {
+        console.error('Error fetching submission status:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+        });
+    }
+};
+
+// Interface for POI query parameters
+interface PoiQueryParams {
+    status?: typeof submissionStatusEnum.enumValues[number];
+    userId?: string;
+    startDate?: string;
+    endDate?: string;
+    isEligibleForClaim?: boolean;
+    sortBy?: 'createdAt' | 'submissionTimestamp' | 'verificationTimestamp';
+    sortOrder?: 'asc' | 'desc';
+    page?: number;
+    limit?: number;
+}
+
+// Get POIs with filtering and pagination
+export const getPois = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {
+            status,
+            userId,
+            startDate,
+            endDate,
+            isEligibleForClaim,
+            sortBy = 'createdAt',
+            sortOrder = 'desc',
+            page = 1,
+            limit = 10,
+        } = req.query as PoiQueryParams;
+
+        // Build where conditions
+        const whereConditions: SQL[] = [];
+
+        if (status) {
+            whereConditions.push(eq(poiSubmissions.status, status));
+        }
+
+        if (userId) {
+            whereConditions.push(eq(poiSubmissions.userId, userId));
+        }
+
+        if (startDate) {
+            whereConditions.push(sql`${poiSubmissions.submissionTimestamp} >= ${new Date(startDate)}`);
+        }
+
+        if (endDate) {
+            whereConditions.push(sql`${poiSubmissions.submissionTimestamp} <= ${new Date(endDate)}`);
+        }
+
+        if (typeof isEligibleForClaim === 'boolean') {
+            whereConditions.push(eq(poiSubmissions.isEligibleForClaim, isEligibleForClaim));
+        }
+
+        // Calculate pagination
+        const offset = (page - 1) * limit;
+
+        // Get total count for pagination
+        const [{ count }] = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(poiSubmissions)
+            .where(and(...whereConditions));
+
+        // Build sort condition
+        const sortColumn = {
+            createdAt: poiSubmissions.createdAt,
+            submissionTimestamp: poiSubmissions.submissionTimestamp,
+            verificationTimestamp: poiSubmissions.verificationTimestamp,
+        }[sortBy];
+
+        // Get paginated results
+        const submissions = await db.query.poiSubmissions.findMany({
+            where: and(...whereConditions),
+            limit,
+            offset,
+            orderBy: sortOrder === 'desc' ? desc(sortColumn) : asc(sortColumn),
+            with: {
+                user: true,
+                verifier: {
+                    columns: {
+                        id: true,
+                        walletAddress: true,
+                        ensName: true,
+                    },
+                },
+            },
+        });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                submissions,
+                pagination: {
+                    total: Number(count),
+                    page,
+                    limit,
+                    totalPages: Math.ceil(Number(count) / limit),
+                },
+            },
+        });
+    } catch (error) {
+        console.error('Error fetching POIs:', error);
         res.status(500).json({
             success: false,
             message: 'Server error',

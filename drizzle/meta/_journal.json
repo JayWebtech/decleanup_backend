@@ -29,6 +29,13 @@
       "when": 1742758699297,
       "tag": "0003_goofy_firestar",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1742764296804,
+      "tag": "0004_strong_thaddeus_ross",
+      "breakpoints": true
     }
   ]
 }

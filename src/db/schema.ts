@@ -6,6 +6,9 @@ export const impactLevelEnum = pgEnum('impact_level', ['NEWBIE', 'PRO', 'HERO', 
 // Define submission status enum
 export const submissionStatusEnum = pgEnum('submission_status', ['PENDING', 'VERIFIED', 'REJECTED']);
 
+// Define user role enum
+export const userRoleEnum = pgEnum('user_role', ['USER', 'VALIDATOR', 'ADMIN']);
+
 // User table schema
 export const users = pgTable('users', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -16,6 +19,7 @@ export const users = pgTable('users', {
     twitterRefreshToken: text('twitter_refresh_token'),
     twitterState: text('twitter_state'),
     twitterCodeVerifier: text('twitter_code_verifier'),
+    role: userRoleEnum('role').default('USER').notNull(),
     impactLevel: impactLevelEnum('impact_level').default('NEWBIE').notNull(),
     impactValue: integer('impact_value').default(1).notNull(),
     totalDcuPoints: integer('total_dcu_points').default(0).notNull(),
@@ -60,6 +64,11 @@ export const poiSubmissions = pgTable('poi_submissions', {
     submissionTimestamp: timestamp('submission_timestamp').notNull(),
     imageTimestamp: timestamp('image_timestamp'),
     status: submissionStatusEnum('status').default('PENDING').notNull(),
+    verifiedBy: uuid('verified_by').references(() => users.id),
+    verificationTimestamp: timestamp('verification_timestamp'),
+    verificationNotes: text('verification_notes'),
+    isEligibleForClaim: boolean('is_eligible_for_claim').default(false).notNull(),
+    claimedAt: timestamp('claimed_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
