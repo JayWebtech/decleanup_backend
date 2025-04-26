@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { claimReward } from '../controllers/rewards.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { requireAuth } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.post('/claim', authenticate, claimReward);
+router.post('/claim', requireAuth, claimReward);
 
 export default router; 
